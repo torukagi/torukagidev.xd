@@ -12,14 +12,17 @@
         }
         #flash { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; opacity: 0; pointer-events: none; z-index: 50; }
         canvas { position: fixed; top: 0; left: 0; z-index: 10; pointer-events: none; }
-        .sns { position: fixed; top: 20px; left: 20px; z-index: 100; }
+        
+        /* SNSリンクのスタイル（複数対応） */
+        .sns-container { position: fixed; top: 20px; left: 20px; z-index: 100; display: flex; flex-direction: column; gap: 10px; }
         .sns-link { 
             display: flex; align-items: center; gap: 8px; color: white; 
             border: 1px solid white; padding: 10px 20px; text-decoration: none; 
             border-radius: 30px; background: rgba(0,0,0,0.6); backdrop-filter: blur(5px); 
             transition: 0.3s;
         }
-        .sns-link:hover { background: rgba(255,255,255,0.2); }
+        .sns-link:hover { background: rgba(255,255,255,0.2); transform: translateX(5px); }
+
         .ui { position: fixed; bottom: 30px; left: 30px; z-index: 100; }
         #weather-btn { cursor: pointer; padding: 10px 20px; border: 1px solid white; background: rgba(0,0,0,0.6); border-radius: 5px; margin-bottom: 10px; display: inline-block; }
         #clock { font-size: 36px; font-weight: bold; text-shadow: 0 0 10px #00f2ff; }
@@ -30,10 +33,14 @@
     <div id="flash"></div>
     <canvas id="cvs"></canvas>
 
-    <div class="sns">
+    <div class="sns-container">
         <a href="https://x.com/bakakagi" target="_blank" class="sns-link">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"></path></svg>
             <span>X (Twitter)</span>
+        </a>
+        <a href="https://www.youtube.com/@ayato-torukagi9W" target="_blank" class="sns-link">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814z"/></svg>
+            <span>YouTube</span>
         </a>
     </div>
 
@@ -48,13 +55,13 @@
         const cvs = document.getElementById('cvs');
         const ctx = cvs.getContext('2d');
         const clockEl = document.getElementById('clock');
-        let w, h, particles = [], wType = 'clear';
+        let w, h, particles = [], stars = [], wType = 'clear';
 
-        // --- 🔈 音の設定（ここが重要です！） ---
+        // --- 🔈 音の設定 ---
         const sounds = {
             clear: new Audio('cricket.mp3'),
             rain: new Audio('rain.mp3'),
-            snow: new Audio('snow.mp3'), // ここで snow.mp3 を指定
+            snow: new Audio('snow.mp3'),
             storm: new Audio('storm.mp3')
         };
         Object.values(sounds).forEach(s => { s.loop = true; s.volume = 0.5; });
@@ -69,6 +76,33 @@
         }
         setInterval(updateClock, 1000);
         updateClock();
+
+        // --- 🌠 流れ星のロジック ---
+        class ShootingStar {
+            constructor() { this.init(); }
+            init() {
+                this.x = Math.random() * w;
+                this.y = Math.random() * h * 0.4;
+                this.len = Math.random() * 80 + 40;
+                this.speed = Math.random() * 10 + 15;
+                this.active = true;
+            }
+            update() {
+                this.x -= this.speed;
+                this.y += this.speed * 0.5;
+                if (this.x < -this.len || this.y > h) this.active = false;
+            }
+            draw() {
+                ctx.save();
+                ctx.strokeStyle = "rgba(255, 255, 255, 0.8)";
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(this.x, this.y);
+                ctx.lineTo(this.x + this.len, this.y - this.len * 0.4);
+                ctx.stroke();
+                ctx.restore();
+            }
+        }
 
         class Particle {
             constructor(type) {
@@ -106,19 +140,33 @@
             wType = modes[(modes.indexOf(wType) + 1) % modes.length];
             document.getElementById('weather-btn').innerText = "WEATHER: " + wType.toUpperCase();
 
-            // 音を全て止める
             Object.values(sounds).forEach(s => { s.pause(); s.currentTime = 0; });
-            // 現在の天気の音を再生
             sounds[wType].play().catch(e => console.error("再生エラー:", e));
 
             particles = [];
+            stars = []; // 天気を変えたら流れ星をリセット
             let count = (wType === 'snow') ? 100 : (wType === 'rain') ? 300 : (wType === 'storm') ? 600 : 0;
             for(let i=0; i<count; i++) particles.push(new Particle(wType));
         };
 
         function animate() {
             ctx.clearRect(0, 0, w, h);
+
+            // 晴れの時だけ流れ星を生成（確率は低めに設定）
+            if (wType === 'clear' && Math.random() > 0.996 && stars.length < 1) {
+                stars.push(new ShootingStar());
+            }
+
+            // 流れ星の描画
+            stars.forEach((s, i) => {
+                s.update();
+                s.draw();
+                if (!s.active) stars.splice(i, 1);
+            });
+
+            // 雨・雪の描画
             particles.forEach(p => { p.update(); p.draw(); });
+
             if (wType === 'storm' && Math.random() > 0.98) {
                 flash.style.opacity = 0.4;
                 setTimeout(() => { flash.style.opacity = 0; }, 50);
