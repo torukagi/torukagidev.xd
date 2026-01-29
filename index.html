@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>merryoftheend - Aurora TNT Edition</title>
+    <style>
+        /* オーロラ背景（高速・高発色版） */
+        .aurora-bg {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1;
+            background: 
+                radial-gradient(circle at 20% 30%, #00ffcc 0%, transparent 50%),
+                radial-gradient(circle at 80% 70%, #3300ff 0%, transparent 50%),
+                radial-gradient(circle at 50% 10%, #ff00ff 0%, transparent 50%),
+                radial-gradient(circle at 10% 80%, #00ffff 0%, transparent 50%);
+            background-size: 200% 200%;
+            filter: blur(80px);
+            animation: auroraMove 4s linear infinite;
+        }
+        @keyframes auroraMove {
+            0% { background-position: 0% 0%; filter: blur(80px) hue-rotate(0deg); }
+            50% { background-position: 100% 100%; filter: blur(120px) hue-rotate(180deg); }
+            100% { background-position: 0% 0%; filter: blur(80px) hue-rotate(360deg); }
+        }
+
+        /* 左上のステータス表示 */
+        #status-container {
+            position: fixed; top: 15px; left: 15px; font-size: 14px; font-family: 'Courier New', Courier, monospace;
+            z-index: 9999; background: rgba(0, 0, 0, 0.85); padding: 10px 15px; border-radius: 5px;
+            border-left: 4px solid #238636; text-align: left; pointer-events: none;
+            box-shadow: 0 0 15px rgba(0, 255, 0, 0.4);
+        }
+        .status-label { font-size: 10px; color: #58a6ff !important; display: block; margin-bottom: 2px; font-weight: bold; }
+        #date-display, #time-display { color: #00ff00 !important; text-shadow: 0 0 8px #00ff00; }
+
+        body {
+            margin: 0; padding: 20px; overflow: hidden; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; min-height: 100vh;
+            color: #58a6ff; font-family: sans-serif; text-align: center; cursor: crosshair;
+        }
+
+        h1 { color: #238636; font-size: clamp(40px, 10vw, 60px); text-shadow: 0 0 15px #238636; z-index: 10; margin: 10px 0; pointer-events: none; }
+
+        /* TNT画像コンテナ */
+        .tnt-container {
+            position: relative; z-index: 10; cursor: pointer; transition: transform 0.1s;
+        }
+        .tnt-container:active { transform: scale(0.9); }
+        .tnt-img {
+            width: 100%; max-width: 250px; height: auto; border-radius: 10px;
+            filter: drop-shadow(0 0 20px rgba(255, 0, 0, 0.6));
+        }
+
+        #typing-text {
+            font-size: clamp(18px, 5vw, 24px); min-height: 1.2em; color: #00ff00;
+            text-shadow: 0 0 5px #00ff00; font-family: 'Courier New', monospace; z-index: 10; margin-top: 20px;
+        }
+
+        .btn-container { margin-top: 20px; z-index: 100; display: flex; flex-direction: column; gap: 10px; align-items: center; }
+        button { background-color: #21262d; color: #c9d1d9; border: 1px solid #30363d; padding: 12px 24px; border-radius: 50px; cursor: pointer; transition: 0.3s; }
+        button:hover { background-color: #238636; color: white; transform: scale(1.05); }
+        .dl-btn { background-color: #ff5555 !important; color: white !important; font-weight: bold; border: none !important; }
+
+        /* 爆発パーティクル */
+        .particle {
+            position: fixed; pointer-events: none; border-radius: 50%; z-index: 999;
+            animation: explode 0.6s ease-out forwards;
+        }
+        @keyframes explode {
+            0% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+            100% { transform: translate(var(--tx), var(--ty)) scale(0); opacity: 0; }
+        }
+
+        /* 画面シェイク */
+        .shake { animation: screenShake 0.2s linear; }
+        @keyframes screenShake {
+            0%, 100% { transform: translate(0,0); }
+            25% { transform: translate(8px, 8px); }
+            50% { transform: translate(-8px, -8px); }
+            75% { transform: translate(8px, -8px); }
+        }
+    </style>
+</head>
+<body id="main-body">
+
+    <div class="aurora-bg"></div>
+
+    <div id="status-container">
+        <span class="status-label">SYSTEM DATE</span>
+        <div id="date-display">----/--/--</div>
+        <span class="status-label" style="margin-top: 8px;">CURRENT TIME</span>
+        <div id="time-display">00:00:00</div>
+    </div>
+
+    <h1>ウオW</h1>
+
+    <div class="tnt-container" onclick="detonate(event)">
+        <img src="tnt.png" alt="TNT" class="tnt-img" id="tnt-pic">
+    </div>
+
+    <p id="typing-text"></p>
+
+    <div class="btn-container">
+        <button id="music-btn" onclick="toggleMusic()">🎵 BGMを再生する</button>
+        <a href="FateInjector.exe" download="FateInjector.exe" style="text-decoration: none;">
+            <button class="dl-btn">💀 FateInjector.exe を入手</button>
+        </a>
+    </div>
+
+    <audio id="bgm" src="music.mp3" loop preload="auto"></audio>
+    <audio id="exp-sound" src="explosion.mp3" preload="auto"></audio>
+
+    <script>
+        // 時計と日付
+        function updateClock() {
+            const now = new Date();
+            const y = now.getFullYear();
+            const m = String(now.getMonth() + 1).padStart(2, '0');
+            const d = String(now.getDate()).padStart(2, '0');
+            const hrs = String(now.getHours()).padStart(2, '0');
+            const min = String(now.getMinutes()).padStart(2, '0');
+            const sec = String(now.getSeconds()).padStart(2, '0');
+            document.getElementById('date-display').textContent = `${y}/${m}/${d}`;
+            document.getElementById('time-display').textContent = `${hrs}:${min}:${sec}`;
+        }
+
+        // BGM制御
+        const bgm = document.getElementById('bgm');
+        const btn = document.getElementById('music-btn');
+        function toggleMusic() {
+            if (bgm.paused) {
+                bgm.play().then(() => { btn.textContent = "⏸ BGMを停止する"; }).catch(e => console.log(e));
+            } else {
+                bgm.pause();
+                btn.textContent = "🎵 BGMを再生する";
+            }
+        }
+
+        // 爆発ギミック
+        function detonate(e) {
+            const expSound = document.getElementById('exp-sound');
+            const body = document.getElementById('main-body');
+            const tnt = document.getElementById('tnt-pic');
+
+            // 音を鳴らす
+            expSound.currentTime = 0;
+            expSound.play().catch(err => {});
+
+            // 画面を揺らす
+            body.classList.remove('shake');
+            void body.offsetWidth; // アニメーション再開マジック
+            body.classList.add('shake');
+
+            // 火花を散らす
+            for (let i = 0; i < 40; i++) {
+                createParticle(e.clientX, e.clientY);
+            }
+
+            // TNTの衝撃エフェクト（一瞬光らせる）
+            tnt.style.filter = "brightness(3) contrast(2) drop-shadow(0 0 30px #fff)";
+            setTimeout(() => { 
+                tnt.style.filter = "drop-shadow(0 0 20px rgba(255, 0, 0, 0.6))"; 
+            }, 100);
+        }
+
+        function createParticle(x, y) {
+            const p = document.createElement('div');
+            p.className = 'particle';
+            const colors = ['#ff0000', '#ff8800', '#ffff00', '#ffffff', '#00ffcc'];
+            p.style.background = colors[Math.floor(Math.random() * colors.length)];
+            const size = Math.random() * 12 + 4 + 'px';
+            p.style.width = size; p.style.height = size;
+            p.style.left = x + 'px'; p.style.top = y + 'px';
+            p.style.setProperty('--tx', (Math.random() - 0.5) * 500 + 'px');
+            p.style.setProperty('--ty', (Math.random() - 0.5) * 500 + 'px');
+            document.body.appendChild(p);
+            setTimeout(() => { p.remove(); }, 600);
+        }
+
+        // タイピング演出
+        const textElement = document.getElementById('typing-text');
+        const message = "TNTをクリックして、この世界を爆破しろ...";
+        let charIndex = 0;
+        function type() {
+            if (charIndex < message.length) {
+                textElement.textContent += message.charAt(charIndex);
+                charIndex++;
+                setTimeout(type, 120);
+            }
+        }
+
+        window.onload = function() {
+            type();
+            updateClock();
+            setInterval(updateClock, 1000);
+        };
+    </script>
+</body>
+</html>
